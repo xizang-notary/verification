@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>公证处 - 债务履行核查函查询系统</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- 配置 Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        notary: '#1e3a8a',      // 公证蓝
+                        gold: '#d97706',         // 国徽金
+                        seal: '#dc2626',         // 国徽红
+                        official: '#374151',     // 正式灰
+                        paper: '#f9f7f4',       // 公文纸色
+                    },
+                    fontFamily: {
+                        song: ['"Noto Serif SC"', 'serif'],
+                        kai: ['"Noto Serif SC"', 'serif'],
+                        official: ['SimSun', 'NSimSun', 'serif'],
+                    },
+                    boxShadow: {
+                        'official': '0 4px 20px 0 rgba(0, 0, 0, 0.15)',
+                        'seal': '0 0 0 3px #ffffff, 0 0 0 6px #dc2626, 0 0 15px rgba(220, 38, 38, 0.3)',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .notary-gradient {
+                background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3730a3 100%);
+            }
+            .gold-gradient {
+                background: linear-gradient(135deg, #d97706 0%, #f59e0b 50%, #fbbf24 100%);
+            }
+            .paper-bg {
+                background: linear-gradient(to bottom, #fefefe 0%, #f9f7f4 50%, #f5f3f0 100%);
+            }
+            .red-seal {
+                background: radial-gradient(circle, #dc2626 30%, #991b1b 70%);
+                position: relative;
+            }
+            .document-border {
+                border: 2px solid #1e3a8a;
+                position: relative;
+            }
+            .document-border::before {
+                content: '';
+                position: absolute;
+                top: -4px;
+                left: -4px;
+                right: -4px;
+                bottom: -4px;
+                border: 1px solid #d97706;
+                pointer-events: none;
+            }
+            .official-stamp {
+                filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+            }
+            .chinese-title {
+                background: linear-gradient(45deg, #1e3a8a, #d97706);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+            .captcha-display {
+                background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 50%, #9ca3af 100%);
+                font-family: 'Courier New', monospace;
+                font-weight: bold;
+                letter-spacing: 0.3em;
+                color: #1f2937;
+                text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+                position: relative;
+                user-select: none;
+                border: 2px solid #9ca3af;
+                border-radius: 4px;
+            }
+            .captcha-container {
+                position: relative;
+                background: #f3f4f6;
+                border: 2px solid #d1d5db;
+                border-radius: 6px;
+                overflow: hidden;
+            }
+            .refresh-btn {
+                background: #6b7280;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                width: 32px;
+                height: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.2s;
+                flex-shrink: 0;
+            }
+            .refresh-btn:hover {
+                background: #4b5563;
+                transform: rotate(180deg);
+            }
+            .modal-backdrop {
+                backdrop-filter: blur(4px);
+                -webkit-backdrop-filter: blur(4px);
+            }
+            .modal-content {
+                max-height: 95vh;
+                display: flex;
+                flex-direction: column;
+            }
+            .loading-spinner {
+                border: 3px solid #f3f4f6;
+                border-top: 3px solid #1e3a8a;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            .slide-in-up {
+                animation: slideInUp 0.3s ease-out;
+            }
+            @keyframes slideInUp {
+                from {
+                    transform: translateY(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+            }
+            .fade-in {
+                animation: fadeIn 0.2s ease-out;
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            .pdf-viewer {
+                width: 100%;
+                height: 60vh;
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                background: #f9fafb;
+            }
+            .pdf-fallback {
+                width: 100%;
+                height: 60vh;
+                border: 2px dashed #d1d5db;
+                border-radius: 8px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background: #f9fafb;
+            }
+            .pdf-loading {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 200px;
+            }
+        }
+    </style>
+</head>
+<body class="font-official min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 text-gray-800">
+    <!-- 公证处抬头横幅 -->
+    <header class="notary-gradient text-white shadow-official">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex flex-col sm:flex-row items-center justify-between">
+                <div class="flex items-center mb-3 sm:mb-0">
+                    <div class="w-12 h-12 sm:w-14 sm:h-14 red-seal rounded-full flex items-center justify-center mr-3 sm:mr-4 shadow-seal flex-shrink-0">
+                        <i class="fas fa-balance-scale text-white text-lg sm:text-xl"></i>
+                    </div>
+                    <div class="text-center sm:text-left">
+                        <h1 class="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold tracking-wide">公证处</h1>
+                        <p class="text-blue-200 text-xs sm:text-sm md:text-base">债务履行核查函查询系统</p>
+                    </div>
+                </div>
+                <div class="text-center sm:text-right">
+                    <div class="text-blue-200 text-xs sm:text-sm"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 国徽装饰条 -->
+    <div class="bg-gradient-to-r from-red-600 via-red-700 to-red-600 py-2">
+        <div class="container mx-auto px-4 flex items-center justify-center">
+            <i class="fas fa-star text-yellow-300 mr-2 sm:mr-3 text-sm sm:text-base"></i>
+            <span class="text-white font-semibold text-xs sm:text-sm">中华人民共和国公证法授权机构</span>
+            <i class="fas fa-star text-yellow-300 ml-2 sm:ml-3 text-sm sm:text-base"></i>
+        </div>
+    </div>
+
+    <!-- 主要内容区域 -->
+    <main class="container mx-auto px-4 py-6 sm:py-8">
+        <!-- 系统说明 -->
+        <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6 sm:mb-8 border-l-4 border-notary">
+            <div class="flex items-start">
+                <i class="fas fa-info-circle text-notary text-lg sm:text-xl mt-1 mr-3 flex-shrink-0"></i>
+                <div class="min-w-0 flex-1">
+                    <h2 class="text-lg sm:text-xl font-semibold text-notary mb-2">查询须知</h2>
+                    <p class="text-gray-600 leading-relaxed text-sm sm:text-base">
+                        本系统系公证处官方债务履行核查函查询系统。为确保查询结果的准确性和法律效力，
+                        敬请当事人准确输入相关信息进行身份验证。查询结果具有完全的法律效力，可作为人民法院、
+                        仲裁机构及相关当事方认定事实的有效证据使用。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 移动端：垂直布局 | 桌面端：左右分栏 -->
+        <div class="mobile-stack">
+            <!-- 左侧/上部：身份验证区 -->
+            <div class="lg:col-span-2 bg-white rounded-lg shadow-official p-4 sm:p-6 mb-6 lg:mb-0 mobile-full-width">
+                <div class="text-center mb-6">
+                    <h3 class="text-lg sm:text-xl font-semibold text-notary mb-2">身份验证</h3>
+                    <div class="w-12 sm:w-16 h-1 bg-gold mx-auto"></div>
+                </div>
+
+                <form id="notaryForm" class="space-y-4 sm:space-y-6">
+                    <!-- 公证书编号 -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-700">
+                            <i class="fas fa-hashtag text-notary mr-2"></i>
+                            公证书编号
+                        </label>
+                        <input 
+                            type="text" 
+                            id="certificateNo" 
+                            placeholder="如：（2025）xxx网证字第xxx号"
+                            class="w-full px-3 sm:px-4 py-3 border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-notary focus:border-notary transition-all duration-300 text-base"
+                            required
+                        >
+                        <p class="text-xs text-gray-500">请输入完整编号，含年度和序号</p>
+                    </div>
+
+                    <!-- 当事人姓名 -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-700">
+                            <i class="fas fa-user text-notary mr-2"></i>
+                            当事人姓名
+                        </label>
+                        <input 
+                            type="text" 
+                            id="partyName" 
+                            placeholder="请输入当事人真实姓名"
+                            class="w-full px-3 sm:px-4 py-3 border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-notary focus:border-notary transition-all duration-300 text-base"
+                            required
+                        >
+                    </div>
+
+                    <!-- 身份证号码 -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-700">
+                            <i class="fas fa-id-card text-notary mr-2"></i>
+                            身份证号码
+                        </label>
+                        <input 
+                            type="text" 
+                            id="idNumber" 
+                            placeholder="请输入18位公民身份号码"
+                            maxlength="18"
+                            class="w-full px-3 sm:px-4 py-3 border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-notary focus:border-notary transition-all duration-300 text-base"
+                            required
+                        >
+                        <p class="text-xs text-gray-500">须与公证书记载信息完全一致</p>
+                    </div>
+
+                    <!-- 查询码 - 清晰版本 -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-700">
+                            <i class="fas fa-key text-notary mr-2"></i>
+                            查询验证码
+                        </label>
+                        <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+                            <input 
+                                type="text" 
+                                id="queryCode" 
+                                placeholder="请输入5位验证码"
+                                maxlength="5"
+                                class="flex-1 px-3 sm:px-4 py-3 border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-notary focus:border-notary transition-all duration-300 uppercase text-base touch-friendly"
+                                required
+                            >
+                            <div class="captcha-container flex items-center justify-center px-3 py-2 sm:py-3 bg-gray-100 flex-shrink-0">
+                                <span class="captcha-display text-lg sm:text-xl font-bold tracking-widest px-3 py-2" id="verifyCodeDisplay">A8K3M</span>
+                                <button type="button" id="refreshVerifyCode" class="refresh-btn touch-friendly ml-2">
+                                    <i class="fas fa-sync-alt text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500">验证码不区分大小写，请仔细辨认后输入</p>
+                    </div>
+
+                    <!-- 查询按钮 -->
+                    <button 
+                        type="submit" 
+                        id="queryBtn"
+                        class="w-full notary-gradient hover:opacity-90 text-white font-semibold py-3 sm:py-4 px-6 rounded-md transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center touch-friendly text-base sm:text-lg"
+                    >
+                        <span id="queryBtnText">查询核查函</span>
+                        <i class="fas fa-search ml-2"></i>
+                    </button>
+                </form>
+
+                <!-- 公证处印章装饰 -->
+                <div class="text-center mt-6">
+                    <div class="inline-block p-3 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+                        <div class="red-seal w-12 h-12 rounded-full flex items-center justify-center mx-auto">
+                            <i class="fas fa-certificate text-white"></i>
+                        </div>
+                        <p class="text-xs text-gray-600 mt-2">公证处</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧/下部：说明区域 -->
+            <div class="lg:col-span-3">
+                <div class="bg-white rounded-lg shadow-official p-4 sm:p-6 h-full flex flex-col">
+                    <div class="text-center flex-1 flex flex-col justify-center min-h-[300px] sm:min-h-[400px]">
+                        <div class="w-16 sm:w-20 h-16 sm:h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 border-2 border-dashed border-gray-300 flex-shrink-0">
+                            <i class="fas fa-file-pdf text-red-500 text-2xl sm:text-3xl"></i>
+                        </div>
+                        <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3">债务履行核查函</h3>
+                        <p class="text-gray-500 leading-relaxed text-sm sm:text-base max-w-md mx-auto px-2">
+                            请在左侧完成身份验证后，点击查询按钮获取您的债务履行核查函PDF文件。
+                            查询结果将以弹窗形式展示PDF文档，支持在线预览和下载。
+                        </p>
+                    </div>                                        
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 公证处声明 -->
+    <footer class="bg-notary text-white mt-8 sm:mt-12">
+        <div class="container mx-auto px-4 py-6 sm:py-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+                <div>
+                    <h4 class="font-semibold mb-3 flex items-center text-sm sm:text-base">
+                        <i class="fas fa-shield-alt mr-2 flex-shrink-0"></i>
+                        权威性声明
+                    </h4>
+                    <p class="text-blue-200 text-xs sm:text-sm leading-relaxed">
+                        本系统出具的核查函具有完全的法律效力，可作为人民法院、仲裁机构及相关当事方认定事实的有效证据使用。
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-3 flex items-center text-sm sm:text-base">
+                        <i class="fas fa-lock mr-2 flex-shrink-0"></i>
+                        保密承诺
+                    </h4>
+                    <p class="text-blue-200 text-xs sm:text-sm leading-relaxed">
+                        本处严格保护查询人隐私信息，相关数据仅用于核查函查询，绝不向任何第三方泄露或用于其他用途。
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-3 flex items-center text-sm sm:text-base">
+                        <i class="fas fa-phone mr-2 flex-shrink-0"></i>
+                        联系方式
+                    </h4>
+                    <p class="text-blue-200 text-xs sm:text-sm leading-relaxed">
+                        如有疑问，请联系公证处<br>
+                        全国统一法律服务热线：12348<br>
+                    </p>
+                </div>
+            </div>
+            <div class="text-center text-blue-300 text-xs sm:text-sm mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-blue-400">
+
+            </div>
+        </div>
+    </footer>
+
+    <!-- 加载弹窗 - 简化版 -->
+    <div id="loadingModal" class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center z-50 hidden fade-in">
+        <div class="bg-white rounded-lg p-8 text-center max-w-sm mx-4">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <h3 class="text-lg font-semibold text-gray-700">正在查询中...</h3>
+            <p class="text-gray-500 text-sm mt-2">请稍候，正在为您检索相关记录</p>
+        </div>
+    </div>
+
+    <!-- 结果弹窗 - PDF版本 -->
+    <div id="resultModal" class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center z-50 hidden fade-in p-2 sm:p-4">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-7xl max-h-[98vh] modal-content slide-in-up">
+            <!-- 弹窗头部 -->
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg flex-shrink-0">
+                <div>
+                    <h3 class="text-lg sm:text-xl font-semibold text-notary flex items-center">
+                        <i class="fas fa-file-pdf text-red-500 mr-2"></i>
+                        债务履行核查函
+                    </h3>
+                    <p class="text-sm text-gray-500 mt-1">查询成功 · PDF文档 · 具有完全法律效力</p>
+                </div>
+                <button id="closeModal" class="text-gray-400 hover:text-gray-600 transition-colors touch-friendly p-2">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <!-- 弹窗内容 - PDF查看器 -->
+            <div class="p-4 flex-1 overflow-hidden">
+                <!-- PDF查看器容器 -->
+                <div id="pdfContainer" class="pdf-viewer">
+                    <!-- PDF加载状态 -->
+                    <div id="pdfLoading" class="pdf-loading">
+                        <div class="loading-spinner mb-4"></div>
+                        <h4 class="text-lg font-semibold text-gray-700 mb-2">正在加载PDF文档...</h4>
+                        <p class="text-gray-500 text-sm">请稍候，文档加载可能需要一些时间</p>
+                        <div class="mt-4 w-full bg-gray-200 rounded-full h-2">
+                            <div id="pdfProgress" class="bg-notary h-2 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- PDF iframe容器（成功加载时显示） -->
+                    <iframe 
+                        id="pdfViewer" 
+                        src="" 
+                        width="100%" 
+                        height="100%" 
+                        style="display: none; border: none;"
+                        title="债务履行核查函PDF文档">
+                    </iframe>
+                    
+                    <!-- PDF加载失败时的备用方案 -->
+                    <div id="pdfFallback" class="pdf-fallback" style="display: none;">
+                        <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
+                        <h4 class="text-lg font-semibold text-gray-700 mb-2">PDF文档加载失败</h4>
+                        <p class="text-gray-500 text-sm mb-4 text-center px-4">
+                            PDF文档暂时无法在浏览器中显示，您可以尝试以下方式：
+                        </p>
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <a 
+                                id="directDownloadBtn" 
+                                href="#" 
+                                class="bg-notary hover:bg-notary/90 text-white font-semibold py-2 px-4 rounded-md transition-colors flex items-center justify-center"
+                            >
+                                <i class="fas fa-download mr-2"></i>
+                                直接下载PDF
+                            </a>
+                            <button 
+                                id="retryLoadBtn" 
+                                class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-md transition-colors flex items-center justify-center"
+                            >
+                                <i class="fas fa-redo mr-2"></i>
+                                重新加载
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作按钮组 -->
+                <div class="flex flex-col sm:flex-row gap-3 justify-center mt-4 flex-shrink-0">
+                    <button 
+                        id="downloadBtn" 
+                        class="bg-notary hover:bg-notary/90 text-white font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-md transition-all duration-300 flex items-center justify-center shadow-lg touch-friendly text-sm sm:text-base"
+                    >
+                        <i class="fas fa-download mr-2"></i>
+                        下载PDF文件
+                    </button>
+                    <button 
+                        id="openNewTabBtn" 
+                        class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-md transition-all duration-300 flex items-center justify-center shadow-lg touch-friendly text-sm sm:text-base"
+                    >
+                        <i class="fas fa-external-link-alt mr-2"></i>
+                        新窗口打开
+                    </button>
+                    <button 
+                        id="newQueryBtn" 
+                        class="bg-gold hover:bg-gold/90 text-white font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-md transition-all duration-300 flex items-center justify-center shadow-lg touch-friendly text-sm sm:text-base"
+                    >
+                        <i class="fas fa-plus mr-2"></i>
+                        新的查询
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 错误弹窗 -->
+    <div id="errorModal" class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center z-50 hidden fade-in p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md modal-content slide-in-up relative">
+            <!-- 关闭按钮（右上角X） -->
+            <button 
+                id="manualCloseErrorBtn" 
+                class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors touch-friendly p-2 z-10"
+                onclick="hideError()"
+            >
+                <i class="fas fa-times text-lg"></i>
+            </button>
+            
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-red-600 mb-3">查询失败</h3>
+                <p id="errorMsg" class="text-gray-600 mb-6 text-sm px-2">您提供的身份信息有误或该公证书不存在，请核实后重新查询。</p>
+                <button 
+                    id="retryQueryBtn" 
+                    class="bg-notary hover:bg-notary/90 text-white font-semibold py-2 px-6 rounded-md transition-colors touch-friendly mr-3"
+                >
+                    重新查询
+                </button>
+                <button 
+                    id="closeErrorBtn" 
+                    class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-md transition-colors touch-friendly"
+                >
+                    关闭
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM元素
+        const notaryForm = document.getElementById('notaryForm');
+        const queryBtn = document.getElementById('queryBtn');
+        const loadingModal = document.getElementById('loadingModal');
+        const resultModal = document.getElementById('resultModal');
+        const errorModal = document.getElementById('errorModal');
+        const closeModal = document.getElementById('closeModal');
+        const verifyCodeDisplay = document.getElementById('verifyCodeDisplay');
+        const refreshVerifyCode = document.getElementById('refreshVerifyCode');
+        const queryCodeInput = document.getElementById('queryCode');
+
+        // PDF相关元素
+        const pdfContainer = document.getElementById('pdfContainer');
+        const pdfLoading = document.getElementById('pdfLoading');
+        const pdfViewer = document.getElementById('pdfViewer');
+        const pdfFallback = document.getElementById('pdfFallback');
+        const pdfProgress = document.getElementById('pdfProgress');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const directDownloadBtn = document.getElementById('directDownloadBtn');
+        const openNewTabBtn = document.getElementById('openNewTabBtn');
+        const retryLoadBtn = document.getElementById('retryLoadBtn');
+
+        // 全局变量
+        let requestTimeout = null;
+        let currentPdfUrl = ''; // 存储当前的PDF URL
+        const REQUEST_TIMEOUT_MS = 180000; // 3分钟 = 180秒 = 180000毫秒
+
+        // API配置
+        const API_BASE_URL = 'https://lsnprapi.chkjnotary.com/api/Share/Share';
+
+        // 简化版验证码生成
+        function generateVerifyCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ3456789';
+            let result = '';
+            for (let i = 0; i < 5; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        // 刷新验证码
+        refreshVerifyCode.addEventListener('click', () => {
+            verifyCodeDisplay.textContent = generateVerifyCode();
+            
+            // 添加旋转动画
+            refreshVerifyCode.style.transform = 'rotate(180deg)';
+            setTimeout(() => {
+                refreshVerifyCode.style.transform = 'rotate(0deg)';
+            }, 200);
+        });
+
+        // 清空验证码输入框
+        function clearQueryCodeInput() {
+            queryCodeInput.value = '';
+        }
+
+        // 设置请求超时
+        function setupRequestTimeout() {
+            if (requestTimeout) {
+                clearTimeout(requestTimeout);
+            }
+            
+            requestTimeout = setTimeout(() => {
+                hideLoading();
+                showError('查询请求超时（超过3分钟），请稍后重试。');
+            }, REQUEST_TIMEOUT_MS);
+        }
+
+        // 取消请求超时
+        function clearRequestTimeout() {
+            if (requestTimeout) {
+                clearTimeout(requestTimeout);
+                requestTimeout = null;
+            }
+        }
+
+        // 显示加载弹窗
+        function showLoading() {
+            loadingModal.classList.remove('hidden');
+            loadingModal.classList.add('fade-in');
+            setupRequestTimeout(); // 启动3分钟超时计时
+        }
+
+        // 隐藏加载弹窗
+        function hideLoading() {
+            loadingModal.classList.add('hidden');
+            loadingModal.classList.remove('fade-in');
+            clearRequestTimeout(); // 清除超时计时
+        }
+
+        // 显示PDF加载进度
+        function updatePdfProgress(percent) {
+            pdfProgress.style.width = percent + '%';
+        }
+
+        // 真正的PDF下载函数 - 通过Blob下载
+        async function downloadPDFFromUrl(pdfUrl, fileName = '债务履行核查函.pdf') {
+            try {
+                // 显示下载状态
+                const downloadModal = document.createElement('div');
+                downloadModal.innerHTML = `
+                    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 9999;">
+                        <div style="background: white; padding: 20px; border-radius: 8px; text-align: center; min-width: 200px;">
+                            <div class="loading-spinner" style="margin: 0 auto;"></div>
+                            <h3 style="margin: 10px 0 5px 0; color: #333;">正在下载PDF文件...</h3>
+                            <p style="color: #666; font-size: 12px;">请稍候，文件正在下载中</p>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(downloadModal);
+
+                // 通过fetch获取PDF文件为blob
+                const response = await fetch(pdfUrl, {
+                    method: 'GET',
+                    mode: 'cors',
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`下载失败: ${response.status} ${response.statusText}`);
+                }
+
+                const blob = await response.blob();
+                
+                // 创建blob URL
+                const blobUrl = window.URL.createObjectURL(blob);
+                
+                // 创建下载链接
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = fileName;
+                link.style.display = 'none';
+                
+                document.body.appendChild(link);
+                link.click();
+                
+                // 清理
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(blobUrl);
+                document.body.removeChild(downloadModal);
+                
+            } catch (error) {
+                console.error('下载失败:', error);
+                alert('文件下载失败: ' + error.message);
+                // 移除下载状态弹窗
+                const modal = document.querySelector('[style*="position: fixed; top: 0; left: 0; width: 100%; height: 100%"]');
+                if (modal) {
+                    document.body.removeChild(modal);
+                }
+            }
+        }
+
+        // 加载PDF文档
+        function loadPdfDocument(pdfUrl) {
+            currentPdfUrl = pdfUrl; // 保存当前PDF URL
+            
+            // 重置PDF容器状态
+            pdfLoading.style.display = 'flex';
+            pdfViewer.style.display = 'none';
+            pdfFallback.style.display = 'none';
+            pdfViewer.src = '';
+            updatePdfProgress(0);
+
+            // 模拟PDF加载进度
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress >= 90) {
+                    progress = 90;
+                    clearInterval(progressInterval);
+                }
+                updatePdfProgress(progress);
+            }, 200);
+
+            // 设置PDF加载超时处理
+            const pdfLoadTimeout = setTimeout(() => {
+                clearInterval(progressInterval);
+                showPdfFallback('PDF文档加载超时，请检查网络连接或尝试直接下载');
+            }, 15000); // 15秒PDF加载超时
+
+            // 尝试加载PDF到iframe
+            pdfViewer.onload = function() {
+                clearInterval(progressInterval);
+                clearTimeout(pdfLoadTimeout);
+                updatePdfProgress(100);
+                
+                // 延迟一点时间再显示，让用户看到100%
+                setTimeout(() => {
+                    pdfLoading.style.display = 'none';
+                    pdfViewer.style.display = 'block';
+                    
+                    // 更新下载和打开按钮的链接 - 使用真正的下载功能
+                    downloadBtn.onclick = () => {
+                        downloadPDFFromUrl(pdfUrl, `债务履行核查函_${new Date().getTime()}.pdf`);
+                    };
+                    directDownloadBtn.onclick = () => {
+                        downloadPDFFromUrl(pdfUrl, `债务履行核查函_${new Date().getTime()}.pdf`);
+                    };
+                    openNewTabBtn.onclick = () => {
+                        window.open(pdfUrl, '_blank');
+                    };
+                }, 500);
+            };
+
+            pdfViewer.onerror = function() {
+                clearInterval(progressInterval);
+                clearTimeout(pdfLoadTimeout);
+                showPdfFallback('PDF文档加载失败，可能是浏览器不支持或文档不存在');
+            };
+
+            // 设置iframe源
+            pdfViewer.src = pdfUrl;
+        }
+
+        // 显示PDF加载失败的备用方案
+        function showPdfFallback(errorMessage) {
+            pdfLoading.style.display = 'none';
+            pdfFallback.style.display = 'flex';
+            if (errorMessage) {
+                pdfFallback.querySelector('p').textContent = errorMessage;
+            }
+            
+            // 更新备用方案的下载链接 - 使用真正的下载功能
+            downloadBtn.onclick = () => {
+                if (currentPdfUrl) {
+                    downloadPDFFromUrl(currentPdfUrl, `债务履行核查函_${new Date().getTime()}.pdf`);
+                }
+            };
+            directDownloadBtn.onclick = () => {
+                if (currentPdfUrl) {
+                    downloadPDFFromUrl(currentPdfUrl, `债务履行核查函_${new Date().getTime()}.pdf`);
+                }
+            };
+            openNewTabBtn.onclick = () => {
+                if (currentPdfUrl) {
+                    window.open(currentPdfUrl, '_blank');
+                }
+            };
+        }
+
+        // 显示结果弹窗并加载PDF
+        function showResultWithPdf(partyName, pdfUrl) {
+            hideLoading();
+            
+            // 显示结果弹窗
+            resultModal.classList.remove('hidden');
+            resultModal.classList.add('fade-in');
+            
+            // 禁止背景滚动
+            document.body.style.overflow = 'hidden';
+            
+            // 加载PDF文档
+            loadPdfDocument(pdfUrl);
+            
+            // 清空验证码输入框
+            clearQueryCodeInput();
+        }
+
+        // 隐藏结果弹窗
+        function hideResult() {
+            resultModal.classList.add('hidden');
+            resultModal.classList.remove('fade-in');
+            
+            // 停止PDF加载
+            pdfViewer.src = '';
+            pdfLoading.style.display = 'flex';
+            pdfViewer.style.display = 'none';
+            pdfFallback.style.display = 'none';
+            
+            // 恢复背景滚动
+            document.body.style.overflow = 'auto';
+            
+            // 清空当前PDF URL
+            currentPdfUrl = '';
+        }
+
+        // 显示错误弹窗（自动刷新验证码和清空输入框）
+        function showError(message) {
+            clearRequestTimeout();
+            hideLoading(); // 确保隐藏加载弹窗
+            errorModal.classList.remove('hidden');
+            errorModal.classList.add('fade-in');
+            document.getElementById('errorMsg').textContent = message;
+            document.body.style.overflow = 'hidden';
+            
+            // 自动刷新验证码（所有错误情况都刷新）
+            refreshVerifyCode.click();
+            // 清空验证码输入框
+            clearQueryCodeInput();
+        }
+
+        // 隐藏错误弹窗
+        function hideError() {
+            errorModal.classList.add('hidden');
+            errorModal.classList.remove('fade-in');
+            document.body.style.overflow = 'auto';
+        }
+
+        // 带超时的fetch请求
+        function fetchWithTimeout(url, options, timeout = 180000) {
+            return new Promise((resolve, reject) => {
+                const timeoutId = setTimeout(() => {
+                    reject(new Error(`请求超时（${timeout/1000}秒）`));
+                }, timeout);
+
+                fetch(url, options)
+                    .then(response => {
+                        clearTimeout(timeoutId);
+                        resolve(response);
+                    })
+                    .catch(error => {
+                        clearTimeout(timeoutId);
+                        reject(error);
+                    });
+            });
+        }
+
+        // 真实的API请求函数 - 确保参数为字符串类型
+        async function fetchVerificationLetter(idNumber, applicantName, notarizationNo) {
+            try {
+                // 确保所有参数都是字符串类型
+                const idNumberStr = String(idNumber || '');
+                const applicantNameStr = String(applicantName || '');
+                const notarizationNoStr = String(notarizationNo || '');
+                
+                // 构建URL
+                const url = new URL(`${API_BASE_URL}/VerificationLetter`);
+                url.searchParams.append('IdNumber', idNumberStr);
+                url.searchParams.append('ApplicantName', applicantNameStr);
+                url.searchParams.append('NotarizationNo', notarizationNoStr);
+                
+                console.log('API请求URL:', url.toString());
+                console.log('请求参数:', {
+                    IdNumber: idNumberStr,
+                    ApplicantName: applicantNameStr,
+                    NotarizationNo: notarizationNoStr
+                });
+                
+                const response = await fetchWithTimeout(url, {
+                    method: 'GET',
+                    headers: {
+                        'accept': 'text/plain',
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'cors'
+                }, 180000); // 3分钟超时
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP错误! 状态: ${response.status}, 响应: ${errorText}`);
+                }
+
+                const data = await response.text();
+                console.log('API响应数据:', data);
+                
+                // 检查响应是否是有效的URL
+                if (data && data.trim() && data.startsWith('http')) {
+                    return data.trim();
+                } else {
+                    throw new Error('API未返回有效的PDF URL');
+                }
+            } catch (error) {
+                console.error('API请求错误:', error);
+                throw error;
+            }
+        }
+
+        // 表单提交处理
+        notaryForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const certificateNo = document.getElementById('certificateNo').value.trim();
+            const partyName = document.getElementById('partyName').value.trim();
+            const idNumber = document.getElementById('idNumber').value.trim();
+            const queryCode = document.getElementById('queryCode').value.trim().toUpperCase();
+            
+            // 简单验证
+            if (!certificateNo || !partyName || !idNumber || !queryCode) {
+                showError('请填写完整的查询信息');
+                return;
+            }
+
+            const actualCode = verifyCodeDisplay.textContent.toUpperCase();
+            if (queryCode !== actualCode) {
+                showError('查询验证码错误，请重新输入');
+                return;
+            }
+
+            // 身份证格式简单验证
+            if (!/^\d{17}[\dXx]$/.test(idNumber)) {
+                showError('身份证号码格式不正确，请核实后重新输入');
+                return;
+            }
+
+            // 显示加载状态
+            showLoading();
+
+            try {
+                // 调用真实的API请求 - 确保传递字符串参数
+                const pdfUrl = await fetchVerificationLetter(
+                    idNumber,        // 身份证号码 (字符串)
+                    partyName,       // 当事人姓名 (字符串)
+                    certificateNo    // 公证书编号 (字符串)
+                );
+                
+                console.log('获取到的PDF URL:', pdfUrl);
+                showResultWithPdf(partyName, pdfUrl);
+                
+            } catch (error) {
+                console.error('API请求错误:', error);
+                // API失败时直接显示错误
+                let errorMessage = '查询失败：';
+                if (error.message.includes('请求超时')) {
+                    errorMessage = '请求超时（超过3分钟），请稍后重试';
+                } else if (error.message.includes('HTTP错误')) {
+                    errorMessage += '服务器错误，请稍后重试';
+                } else if (error.message.includes('网络')) {
+                    errorMessage += '网络连接异常，请检查网络后重试';
+                } else {
+                    errorMessage += error.message || '系统异常，请稍后重试';
+                }
+                showError(errorMessage);
+            }
+        });
+
+        // 关闭结果弹窗
+        closeModal.addEventListener('click', hideResult);
+
+        // 新的查询按钮（在弹窗内）
+        document.getElementById('newQueryBtn').addEventListener('click', () => {
+            hideResult();
+            notaryForm.reset();
+            refreshVerifyCode.click();
+            clearQueryCodeInput(); // 清空验证码输入框
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // 重新加载PDF按钮
+        retryLoadBtn.addEventListener('click', () => {
+            if (currentPdfUrl) {
+                loadPdfDocument(currentPdfUrl);
+            }
+        });
+
+        // 点击弹窗背景关闭弹窗
+        [resultModal, errorModal].forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    if (modal.id === 'resultModal') {
+                        hideResult();
+                    } else if (modal.id === 'errorModal') {
+                        hideError();
+                    }
+                }
+            });
+        });
+
+        // ESC键关闭弹窗
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (!resultModal.classList.contains('hidden')) {
+                    hideResult();
+                }
+                if (!errorModal.classList.contains('hidden')) {
+                    hideError();
+                }
+                if (!loadingModal.classList.contains('hidden')) {
+                    hideLoading();
+                }
+            }
+        });
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshVerifyCode.click();
+            
+            // 绑定错误弹窗按钮事件
+            document.getElementById('retryQueryBtn').addEventListener('click', () => {
+                hideError();
+            });
+            
+            document.getElementById('closeErrorBtn').addEventListener('click', () => {
+                hideError();
+            });
+            
+            document.getElementById('manualCloseErrorBtn').addEventListener('click', () => {
+                hideError();
+            });
+        });
+
+        // 输入框焦点效果
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.classList.add('scale-[1.02]');
+                this.parentElement.style.transition = 'transform 0.2s ease';
+            });
+            
+            input.addEventListener('blur', function() {
+                this.parentElement.classList.remove('scale-[1.02]');
+            });
+        });
+
+        // 移动端优化
+        document.addEventListener('touchstart', function(e) {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        });
+
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(e) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+
+        // 页面卸载时清理超时
+        window.addEventListener('beforeunload', () => {
+            clearRequestTimeout();
+        });
+    </script>
+</body>
+</html>
